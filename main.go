@@ -8,8 +8,8 @@ import (
 )
 
 type Person struct {
-	Name     string
-	LastName string
+	Name     string `json:"nombre"`
+	LastName string `json:"apellido"`
 }
 
 func main() {
@@ -21,11 +21,14 @@ func main() {
 		ctx.String(http.StatusOK, "pong")
 	})
 
-	var body Person
 	router.POST("/saludo", func(ctx *gin.Context) {
-		ctx.BindJSON(&body)
+		var persona1 Person
 
-		message := fmt.Sprintf("Hola, %s %s", body.Name, body.LastName)
+		if err := ctx.BindJSON(&persona1); err != nil {
+			return
+		}
+		fmt.Println(persona1)
+		message := fmt.Sprintf("Hola, %s %s", persona1.Name, persona1.LastName)
 		ctx.String(http.StatusOK, message)
 	})
 	router.Run(":8080")
