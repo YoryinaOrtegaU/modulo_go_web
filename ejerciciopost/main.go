@@ -1,16 +1,17 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	l "goweb/ejerciciopost/lector"
 	"goweb/ejerciciopost/modelo"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func AñadirProducto(productoNuevo modelo.Product, sliceProd modelo.ProductsList) {
+func AñadirProducto(productoNuevo modelo.Product, sliceProd *modelo.ProductsList) error {
 
 	sliceProd1 := sliceProd.ProductsList
 	tamanoSlice := len(sliceProd1)
@@ -23,19 +24,33 @@ func AñadirProducto(productoNuevo modelo.Product, sliceProd modelo.ProductsList
 
 	for _, prod := range sliceProd1 {
 		if prod.CodeValue == productoNuevo.CodeValue {
-			fmt.Println("CodeValue no valido, ya existe en el slice")
+			return errors.New("CodeValue no valido, ya existe en el slice")
 		}
 	}
 
-	sliceProd1 = append(sliceProd1, productoNuevo)
+	//sliceProd1 = append(sliceProd1, productoNuevo)
 
+	sliceProd.ProductsList = append(sliceProd.ProductsList, productoNuevo)
+
+	fmt.Println("1)", sliceProd.ProductsList)
+	return nil
+
+}
+
+func findById(id int, sliceProd modelo.ProductsList) modelo.Product {
+	sliceProd1 := sliceProd.ProductsList
+	for _, prod := range sliceProd1 {
+		if prod.Id == id {
+			return prod
+		}
+	}
+	panic("no encontró el product")
 }
 
 func main() {
 
 	// slice de productos
 	sliceProd := l.LeerJson("products.json")
-	fmt.Println(sliceProd)
 
 	//Servidor
 	router := gin.Default()
@@ -49,15 +64,30 @@ func main() {
 			ctx.String(http.StatusBadRequest, err.Error())
 			return
 		}
-		AñadirProducto(prod, sliceProd)
+		err := AñadirProducto(prod, &sliceProd)
+		if err != nil {
+			fmt.Println(err)
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		fmt.Println("2)", sliceProd)
 
 		ctx.String(http.StatusOK, "producto añadido")
 
-		prodc, _ := json.Marshal(prod)
-
-		fmt.Println(string(prodc))
 	})
 
-	fmt.Println(sliceProd)
+	//Buscar por Id el producto agregado
+	router.GET("/products/:id", func(ctx *gin.Context) {
+
+		id, err := strconv.Atoi(ctx.Param("id"))
+		if err != nil {
+			panic(err)
+		}
+
+		producto := findById(id, sliceProd)
+
+		ctx.IndentedJSON(http.StatusOK, gin.H{"productoBuscado": producto})
+	})
+
 	router.Run(":8080")
 }
